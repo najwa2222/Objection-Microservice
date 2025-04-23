@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init-script
+  namespace: crda-namespace
+data:
+  init.sql: |
+    CREATE DATABASE IF NOT EXISTS base_objection;
+    USE base_objection;
+
+    SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+    START TRANSACTION;
+    SET time_zone = "+00:00";
+
+    CREATE USER IF NOT EXISTS 'crda_user'@'%' IDENTIFIED BY 'placeholder_password';
+    GRANT SELECT, INSERT, UPDATE, DELETE ON base_objection.* TO 'crda_user'@'%';
+
+    - Create table for farmer
+    CREATE TABLE IF NOT EXISTS `farmer` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `first_name` VARCHAR(100) NOT NULL,
+      `last_name` VARCHAR(100) NOT NULL,
+      `phone` VARCHAR(20) NOT NULL,
+      `national_id` VARCHAR(50) NOT NULL UNIQUE,
+      `password_hash` VARCHAR(255) NOT NULL,
+      `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB CHARSET=utf8mb4;
+
+    -- Create table for objection
+    CREATE TABLE IF NOT EXISTS `objection` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `farmer_id` INT NOT NULL,
+      `code` VARCHAR(50) NOT NULL UNIQUE,
+      `transaction_number` VARCHAR(100) NOT NULL,
+      `status` ENUM('pending', 'reviewed', 'resolved') DEFAULT 'pending',
+      `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+      `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (`farmer_id`) REFERENCES `farmer`(`id`)
+    ) ENGINE=InnoDB CHARSET=utf8mb4;
+
+    -- Create table for password_reset
+    CREATE TABLE IF NOT EXISTS `password_reset` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `farmer_id` INT NOT NULL,
+      `national_id` VARCHAR(50) NOT NULL,
+      `reset_token` VARCHAR(100) NOT NULL,
+      `verification_code` VARCHAR(6) NOT NULL,
+      `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      `expires_at` TIMESTAMP,
+      FOREIGN KEY (`farmer_id`) REFERENCES `farmer`(`id`)
+    ) ENGINE=InnoDB CHARSET=utf8mb4;
+
+    -- Create table for sessions
+    CREATE TABLE IF NOT EXISTS `sessions` (
+      `session_id` VARCHAR(128) PRIMARY KEY,
+      `expires` INT UNSIGNED NOT NULL,
+      `data` MEDIUMTEXT
+    ) ENGINE=InnoDB CHARSET=utf8mb4;
+
+    COMMIT;
