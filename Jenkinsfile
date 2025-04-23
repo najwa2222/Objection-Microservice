@@ -6,7 +6,7 @@ pipeline {
     DOCKER_TAG                 = "${env.BUILD_NUMBER}"
     KUBE_NAMESPACE             = 'crda-namespace'
     SONAR_PROJECT_KEY          = 'najwa22_objection-app'
-    SONAR_SERVER_URL           = 'http://your-sonar-host:9000'
+    SONAR_SERVER_URL           = 'http://localhost:9000'
     SONAR_TOKEN_CREDENTIALS_ID = 'sonarqube-token'
     COVERAGE_REPORT            = 'coverage/lcov.info'
     MYSQL_ROOT_PASSWORD        = credentials('mysql-root-password')
@@ -23,7 +23,7 @@ pipeline {
   stages {
     stage('Checkout SCM') {
       steps {
-        git url: 'https://github.com/najwa2222/objection-app.git', branch: 'main'
+        git url: 'https://github.com/najwa2222/Objection-Microservice.git', branch: 'main'
       }
     }
 
