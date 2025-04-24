@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: objection-app
-        image: najwa22/objection-app:{{ BUILD_TAG }}
+        image: najwa22/objection-app:latest
         ports:
         - containerPort: 3001
         env:
