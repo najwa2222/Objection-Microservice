@@ -12,8 +12,8 @@ data:
     START TRANSACTION;
     SET time_zone = "+00:00";
 
-    CREATE USER IF NOT EXISTS 'crda_user'@'%' IDENTIFIED BY 'placeholder_password';
-    GRANT SELECT, INSERT, UPDATE, DELETE ON base_objection.* TO 'crda_user'@'%';
+    CREATE USER IF NOT EXISTS 'objc_user'@'%' IDENTIFIED BY 'placeholder_password';
+    GRANT SELECT, INSERT, UPDATE, DELETE ON base_objection.* TO 'objc_user'@'%';
 
     - Create table for farmer
     CREATE TABLE IF NOT EXISTS `farmer` (

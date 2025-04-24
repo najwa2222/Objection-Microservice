@@ -28,7 +28,7 @@ spec:
         - name: DB_HOST
           value: "mysql-service"
         - name: DB_USER
-          value: "crda_user"
+          value: "objc_user"
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
