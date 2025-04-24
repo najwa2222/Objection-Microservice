@@ -122,7 +122,7 @@ pipeline {
           kubectl apply -n ${KUBE_NAMESPACE} -f k8s/mysql-pv.yaml
           kubectl apply -n ${KUBE_NAMESPACE} -f k8s/mysql-pvc.yaml
           kubectl apply -n ${KUBE_NAMESPACE} -f k8s/mysql-config.yaml
-          kubectl apply -n ${KUBE_NAMESPACE} -f k8s/mysql-init-scripts.yaml
+          kubectl apply -n ${KUBE_NAMESPACE} -f k8s/mysql-init-script.yaml
           kubectl apply -n ${KUBE_NAMESPACE} -f k8s/mysql-deployment.yaml
           kubectl apply -n ${KUBE_NAMESPACE} -f k8s/mysql-service.yaml
           kubectl apply -n ${KUBE_NAMESPACE} -f k8s/app-secret.yaml

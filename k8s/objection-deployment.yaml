@@ -55,5 +55,3 @@ spec:
             secretKeyRef:
               name: app-secret
               key: admin-password-hash
-
-
