@@ -25,6 +25,18 @@ spec:
         env:
         - name: PORT
           value: "3001"
+        - name: MYSQL_HOST
+          value: "mysql-service"
+        - name: MYSQL_USER
+          value: "objc_user"
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: app-password
+        - name: MYSQL_DB
+          value: "base_objection"
+          
         - name: DB_HOST
           value: "mysql-service"
         - name: DB_USER
@@ -36,6 +48,7 @@ spec:
               key: app-password
         - name: DB_NAME
           value: "base_objection"
+
         - name: SESSION_SECRET
           valueFrom:
             secretKeyRef:
