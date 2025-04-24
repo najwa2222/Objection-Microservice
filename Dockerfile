@@ -24,7 +24,7 @@ RUN apk add --no-cache curl
 
 # Kubernetes-style healthcheck against your /health endpoint
 HEALTHCHECK --interval=30s --timeout=5s \
-  CMD curl -f http://localhost:3001/health || exit 1
+  CMD curl -f http://localhost:3001/health-pod || exit 1
 
 # Start your service
 CMD ["node", "app.js"]
