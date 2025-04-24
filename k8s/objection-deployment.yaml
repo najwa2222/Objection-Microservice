@@ -55,3 +55,17 @@ spec:
             secretKeyRef:
               name: app-secret
               key: admin-password-hash
+        readinessProbe:
+          httpGet:
+            path: /health-pod
+            port: 3001 # Corrected to 3001
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 10
+        livenessProbe: # Added liveness probe
+          httpGet:
+            path: /livez
+            port: 3001 # Match the app port
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 5
