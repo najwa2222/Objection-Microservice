@@ -325,7 +325,6 @@ app.get('/health', async (req, res) => {
 app.get('/livez', (req, res) => res.status(200).send('Objection backend is up'));
 
 
-const mysql = require('mysql2/promise');
 let connection; // Optional persistent connection (if managed elsewhere)
 
 app.get('/health-pod', async (req, res) => {
