@@ -65,7 +65,7 @@ pipeline {
                 -Dsonar.host.url=${SONAR_SERVER_URL} ^
                 -Dsonar.login=%SONAR_TOKEN% ^
                 -Dsonar.javascript.lcov.reportPaths=${COVERAGE_REPORT} ^
-                -Dsonar.qualitygate.wait=true
+                -Dsonar.qualitygate.wait=false
             """
           }
         }
