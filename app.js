@@ -195,7 +195,7 @@ app.post('/farmer/forgot-password', async (req, res) => {
   await pool.execute(
     `INSERT INTO password_reset
        (farmer_id, national_id, reset_token, verification_code, expires_at)
-     VALUES (?,?,?,?,DATE_ADD(NOW(), INTERVAL 1 HOUR))`,
+     VALUES (?,?,?,?,DATE_ADD(NOW(), INTERVAL 2 HOUR))`,
     [farmer.id, national_id, token, code]
   );
   console.log(`Code for ${national_id}: ${code}`);
@@ -385,8 +385,8 @@ app.get('/metrics', async (req, res) => {
 
 // — Start —
 initDatabase().then(() => {
-  app.listen(process.env.PORT || 5000, () => {
-    console.log(`App started on port ${process.env.PORT || 5000}`);
+  app.listen(process.env.PORT || 3001, () => {
+    console.log(`App started on port ${process.env.PORT || 3001}`);
   });
 });
 
