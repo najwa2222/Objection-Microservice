@@ -149,7 +149,7 @@ async function canSubmit(farmerId) {
 // — API Routes —
 
 // 1) Farmer Registration
-app.post('/api/farmer/register', async (req, res) => {
+app.post('/farmer/register', async (req, res) => {
   const { first_name, last_name, phone, national_id, password } = req.body;
   try {
     const hash = await bcrypt.hash(password, 10);
@@ -167,7 +167,7 @@ app.post('/api/farmer/register', async (req, res) => {
 });
 
 // 2) Farmer Login
-app.post('/api/farmer/login', async (req, res) => {
+app.post('/farmer/login', async (req, res) => {
   const { national_id, password } = req.body;
   const [[farmer]] = await pool.execute(
     'SELECT * FROM farmer WHERE national_id=?',
@@ -181,7 +181,7 @@ app.post('/api/farmer/login', async (req, res) => {
 });
 
 // 3) Forgot Password → send code
-app.post('/api/farmer/forgot-password', async (req, res) => {
+app.post('/farmer/forgot-password', async (req, res) => {
   const { national_id, phone } = req.body;
   const [[farmer]] = await pool.execute(
     'SELECT * FROM farmer WHERE national_id=? AND phone=?',
@@ -203,7 +203,7 @@ app.post('/api/farmer/forgot-password', async (req, res) => {
 });
 
 // 4) Verify Code
-app.post('/api/farmer/verify-code', async (req, res) => {
+app.post('/farmer/verify-code', async (req, res) => {
   const { national_id, verification_code } = req.body;
   const [[row]] = await pool.execute(
     `SELECT * FROM password_reset 
@@ -215,7 +215,7 @@ app.post('/api/farmer/verify-code', async (req, res) => {
 });
 
 // 5) Reset Password
-app.post('/api/farmer/reset-password', async (req, res) => {
+app.post('/farmer/reset-password', async (req, res) => {
   const { national_id, reset_token, password } = req.body;
   const [[row]] = await pool.execute(
     `SELECT * FROM password_reset 
@@ -234,7 +234,7 @@ app.post('/api/farmer/reset-password', async (req, res) => {
 });
 
 // 6) List Objections (farmer)
-app.get('/api/objection', requireAuth, async (req, res) => {
+app.get('/objection', requireAuth, async (req, res) => {
   const [rows] = await pool.execute(
     'SELECT * FROM objection WHERE farmer_id=? ORDER BY created_at DESC',
     [req.user.id]
@@ -243,12 +243,12 @@ app.get('/api/objection', requireAuth, async (req, res) => {
 });
 
 // 7) Can Submit New?
-app.get('/api/objection/can-submit', requireAuth, async (req, res) => {
+app.get('/objection/can-submit', requireAuth, async (req, res) => {
   res.json({ canSubmit: await canSubmit(req.user.id) });
 });
 
 // 8) Submit New Objection
-app.post('/api/objection', requireAuth, async (req, res) => {
+app.post('/objection', requireAuth, async (req, res) => {
   if (!await canSubmit(req.user.id)) {
     return res.status(403).json({ message: 'Already have pending/reviewed' });
   }
@@ -262,7 +262,7 @@ app.post('/api/objection', requireAuth, async (req, res) => {
 });
 
 // 9) Admin Login
-app.post('/api/admin/login', async (req, res) => {
+app.post('/admin/login', async (req, res) => {
   const { username, password } = req.body;
   if (username !== process.env.ADMIN_USERNAME) return res.status(401).json({ message: 'Bad creds' });
   if (!await bcrypt.compare(password, process.env.ADMIN_PASSWORD_HASH)) {
@@ -273,7 +273,7 @@ app.post('/api/admin/login', async (req, res) => {
 });
 
 // 10) Admin → list pending/reviewed (dashboard)
-app.get('/api/admin/objections', requireAuth, async (req, res) => {
+app.get('/admin/objections', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
   const [rows] = await pool.execute(
     'SELECT * FROM objection WHERE status IN("pending", "reviewed") ORDER BY created_at DESC'
@@ -282,27 +282,27 @@ app.get('/api/admin/objections', requireAuth, async (req, res) => {
 });
 
 // 11) Admin → resolve objection (dashboard)
-app.post('/api/admin/resolve-objection', requireAuth, async (req, res) => {
+app.post('/admin/resolve-objection', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
   const { objection_id } = req.body;
   await pool.execute('UPDATE objection SET status="resolved" WHERE id=?', [objection_id]);
   res.json({ message: 'Objection resolved' });
 });
 
-app.post('/api/admin/objection/:id/resolve', requireAuth, async (req, res) => {
+app.post('/admin/objection/:id/resolve', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
   await pool.execute('UPDATE objection SET status="resolved" WHERE id=?', [req.params.id]);
   res.json({ message: 'Objection resolved' });
 });
 
-app.post('/api/admin/objection/:id/review', requireAuth, async (req, res) => {
+app.post('/admin/objection/:id/review', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
   await pool.execute('UPDATE objection SET status="reviewed" WHERE id=?', [req.params.id]);
   res.json({ message: 'Objection reviewed' });
 });
 
 // Admin → list resolved (archive)
-app.get('/api/admin/archive', requireAuth, async (req, res) => {
+app.get('/admin/archive', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
   
   const page = parseInt(req.query.page) || 1;
