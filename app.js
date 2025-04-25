@@ -42,54 +42,84 @@ const pool = mysql.createPool({
 });
 
 async function initDatabase() {
-  const c = await pool.getConnection();
-  // farmer table
-  await c.query(`
-    CREATE TABLE IF NOT EXISTS farmer (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      first_name VARCHAR(100) NOT NULL,
-      last_name VARCHAR(100) NOT NULL,
-      phone VARCHAR(20) NOT NULL,
-      national_id VARCHAR(50) NOT NULL UNIQUE,
-      password_hash VARCHAR(255) NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB CHARSET=utf8mb4;
-  `);
-  // objection table
-  await c.query(`
-    CREATE TABLE IF NOT EXISTS objection (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      farmer_id INT NOT NULL,
-      code VARCHAR(50) NOT NULL UNIQUE,
-      transaction_number VARCHAR(100) NOT NULL,
-      status ENUM('pending','reviewed','resolved') DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (farmer_id) REFERENCES farmer(id)
-    ) ENGINE=InnoDB CHARSET=utf8mb4;
-  `);
-  // password_reset
-  await c.query(`
-    CREATE TABLE IF NOT EXISTS password_reset (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      farmer_id INT NOT NULL,
-      national_id VARCHAR(50) NOT NULL,
-      reset_token VARCHAR(100) NOT NULL,
-      verification_code VARCHAR(6) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      expires_at TIMESTAMP,
-      FOREIGN KEY (farmer_id) REFERENCES farmer(id)
-    ) ENGINE=InnoDB CHARSET=utf8mb4;
-  `);
-  // sessions (if you later wire up express-mysql-session)
-  await c.query(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      session_id VARCHAR(128) PRIMARY KEY,
-      expires INT UNSIGNED NOT NULL,
-      data MEDIUMTEXT
-    ) ENGINE=InnoDB CHARSET=utf8mb4;
-  `);
-  c.release();
+  let retries = 5;
+  let connection;
+  
+  while (retries) {
+    try {
+      connection = await pool.getConnection();
+      console.log('Successfully connected to database');
+      break;
+    } catch (err) {
+      console.error(`Failed to connect to database (${retries} retries left): ${err.message}`);
+      retries--;
+      if (retries === 0) {
+        console.error('All database connection attempts failed');
+        process.exit(1); // Optional: exit on complete failure
+      }
+      // Wait 5 seconds before retrying
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+  
+  try {
+    // farmer table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS farmer (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        first_name VARCHAR(100) NOT NULL,
+        last_name VARCHAR(100) NOT NULL,
+        phone VARCHAR(20) NOT NULL,
+        national_id VARCHAR(50) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB CHARSET=utf8mb4;
+    `);
+    
+    // objection table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS objection (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        farmer_id INT NOT NULL,
+        code VARCHAR(50) NOT NULL UNIQUE,
+        transaction_number VARCHAR(100) NOT NULL,
+        status ENUM('pending','reviewed','resolved') DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (farmer_id) REFERENCES farmer(id)
+      ) ENGINE=InnoDB CHARSET=utf8mb4;
+    `);
+    
+    // password_reset
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS password_reset (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        farmer_id INT NOT NULL,
+        national_id VARCHAR(50) NOT NULL,
+        reset_token VARCHAR(100) NOT NULL,
+        verification_code VARCHAR(6) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP,
+        FOREIGN KEY (farmer_id) REFERENCES farmer(id)
+      ) ENGINE=InnoDB CHARSET=utf8mb4;
+    `);
+    
+    // sessions (if you later wire up express-mysql-session)
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        session_id VARCHAR(128) PRIMARY KEY,
+        expires INT UNSIGNED NOT NULL,
+        data MEDIUMTEXT
+      ) ENGINE=InnoDB CHARSET=utf8mb4;
+    `);
+    
+    console.log('Database schema initialization completed successfully');
+  } catch (err) {
+    console.error('Error initializing database schema:', err);
+    throw err;
+  } finally {
+    if (connection) connection.release();
+  }
 }
 
 // — JWT Helpers —
@@ -328,32 +358,15 @@ app.get('/livez', (req, res) => res.status(200).send('Objection backend is up'))
 let connection; // Optional persistent connection (if managed elsewhere)
 
 app.get('/health-pod', async (req, res) => {
-  if (!connection) {
-    console.warn('Health check: DB not connected yet');
-
-    try {
-      // Try a temporary connection to still validate DB availability
-      const tempConnection = await mysql.createConnection({
-        host: process.env.MYSQL_HOST,
-        user: process.env.MYSQL_USER,
-        password: process.env.MYSQL_PASSWORD,
-        database: process.env.MYSQL_DB
-      });
-      await tempConnection.query('SELECT 1');
-      await tempConnection.end();
-      return res.status(200).send('OK');
-    } catch (err) {
-      console.warn('Health check (temp connection) failed:', err.message);
-      return res.status(200).send('OK'); // Still return OK in dev
-    }
-  }
-
   try {
-    await connection.query('SELECT 1');
+    // Use the existing pool instead of creating a new connection
+    let [rows] = await pool.query('SELECT 1');
+    console.log('Health check passed: DB connected');
     res.status(200).send('OK');
   } catch (err) {
-    console.warn('Health check query failed:', err.message);
-    res.status(200).send('OK'); // Still return OK in dev
+    console.error('Health check failed:', err.message);
+    // In production, you should return 500 to indicate failure
+    res.status(500).send('DB connection failed');
   }
 });
 
