@@ -134,18 +134,18 @@ pipeline {
     }
   }
 
-  stage('Monitoring') {
-    steps {
-      bat """
-        kubectl apply -n ${KUBE_NAMESPACE} -f mon/prometheus-config.yaml
-        kubectl apply -n ${KUBE_NAMESPACE} -f mon/prometheus-RBAC.yaml
-        kubectl apply -n ${KUBE_NAMESPACE} -f mon/prometheus-deployment.yaml
-        kubectl apply -n ${KUBE_NAMESPACE} -f mon/grafana-secret.yaml
-        kubectl apply -n ${KUBE_NAMESPACE} -f mon/grafana-deployment.yaml
-        kubectl apply -n ${KUBE_NAMESPACE} -f mon/mysql-exporter.yaml
-      """
+    stage('Monitoring') {
+      steps {
+        bat """
+          kubectl apply -n ${KUBE_NAMESPACE} -f mon/prometheus-config.yaml
+          kubectl apply -n ${KUBE_NAMESPACE} -f mon/prometheus-RBAC.yaml
+          kubectl apply -n ${KUBE_NAMESPACE} -f mon/prometheus-deployment.yaml
+          kubectl apply -n ${KUBE_NAMESPACE} -f mon/grafana-secret.yaml
+          kubectl apply -n ${KUBE_NAMESPACE} -f mon/grafana-deployment.yaml
+          kubectl apply -n ${KUBE_NAMESPACE} -f mon/mysql-exporter.yaml
+        """
+      }
     }
-  }
   
   post {
     success {
