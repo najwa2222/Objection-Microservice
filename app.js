@@ -110,6 +110,7 @@ await pool.execute(
 
 // 2) Farmer Login
 app.post('/farmer/login', async (req, res) => {
+  console.log('▶️ [API] /farmer/login payload:', req.body);
   const { national_id, password } = req.body;
   const [[farmer]] = await pool.execute(
     'SELECT * FROM farmer WHERE national_id=?',
@@ -205,6 +206,7 @@ app.post('/objection', requireAuth, async (req, res) => {
 
 // 9) Admin Login
 app.post('/admin/login', async (req, res) => {
+  console.log('▶️ [API] /admin/login payload:', req.body);
   const { username, password } = req.body;
   if (username !== process.env.ADMIN_USERNAME || password !== process.env.ADMIN_PASSWORD) {
     return res.status(401).json({ message: 'Bad creds' });
