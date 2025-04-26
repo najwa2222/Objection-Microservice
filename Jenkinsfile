@@ -132,9 +132,8 @@ pipeline {
         """
       }
     }
-  }
 
-    stage('Monitoring') {
+    stage('Monitoring') {  // <== I moved Monitoring stage inside the stages block
       steps {
         bat """
           kubectl apply -n ${KUBE_NAMESPACE} -f mon/prometheus-config.yaml
@@ -146,7 +145,9 @@ pipeline {
         """
       }
     }
-  
+
+  } // <== this closes the stages block properly
+
   post {
     success {
       slackSend(
