@@ -223,9 +223,9 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
 
   const page  = parseInt(req.query.page)  || 1;
   const limit = 10;
-  const offset = (page - 1) * limit;
+  const offset= (page - 1) * limit;
 
-  // fetch one page
+  // fetch one page of pending/reviewed:
   const [rows] = await pool.execute(
     `SELECT * 
        FROM objection 
@@ -235,7 +235,7 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
     [limit, offset]
   );
 
-  // total count for pagination
+  // total count for pagination:
   const [[{ total }]] = await pool.execute(
     `SELECT COUNT(*) AS total
        FROM objection
@@ -249,7 +249,6 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
     searchTerm: req.query.search || ''
   });
 });
-
 
 // 11) Admin → resolve objection (dashboard)
 app.post('/admin/resolve-objection', requireAuth, async (req, res) => {
