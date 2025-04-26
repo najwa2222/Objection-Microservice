@@ -221,55 +221,33 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') 
     return res.status(403).json({ message: 'Forbidden' });
 
-  try {
-    // Pagination setup
-    const rawPage = parseInt(req.query.page, 10);
-    const page    = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
-    const limit   = 10;
-    const offset  = (page - 1) * limit;
+  const page  = parseInt(req.query.page)  || 1;
+  const limit = 10;
+  const offset = (page - 1) * limit;
 
-    const search = (req.query.search || '').trim();
-
-    // Build WHERE clause + params
-    let where = 'WHERE status IN("pending","reviewed")';
-    const params = [];
-
-    if (search) {
-      where += ' AND (o.code LIKE ? OR f.first_name LIKE ? OR f.last_name LIKE ?)';
-      const like = `%${search}%`;
-      params.push(like, like, like);
-    }
-
-    // Fetch page of objections
-    const dataSql = `
-      SELECT *
-      FROM objection
-      ${where}
+  // fetch one page
+  const [rows] = await pool.execute(
+    `SELECT * 
+       FROM objection 
+      WHERE status IN("pending","reviewed")
       ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `;
-    const [rows] = await pool.execute(dataSql, [...params, limit, offset]);
+      LIMIT ? OFFSET ?`,
+    [limit, offset]
+  );
 
-    // Get matching total count
-    const countSql = `
-      SELECT COUNT(*) AS total
-      FROM objection
-      ${where}
-    `;
-    const [[{ total }]] = await pool.execute(countSql, params);
+  // total count for pagination
+  const [[{ total }]] = await pool.execute(
+    `SELECT COUNT(*) AS total
+       FROM objection
+      WHERE status IN("pending","reviewed")`
+  );
 
-    // Return paged + filtered results
-    res.json({
-      rows,
-      page,
-      totalPages: Math.ceil(total / limit),
-      searchTerm: search
-    });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server Error' });
-  }
+  res.json({
+    rows,
+    page,
+    totalPages: Math.ceil(total / limit),
+    searchTerm: req.query.search || ''
+  });
 });
 
 
