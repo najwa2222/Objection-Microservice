@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
 import * as mysql from 'mysql2/promise';
-import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import Prometheus from 'prom-client';
@@ -61,66 +60,10 @@ async function initDatabase() {
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
-  
-  try {
-    // farmer table
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS farmer (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        first_name VARCHAR(100) NOT NULL,
-        last_name VARCHAR(100) NOT NULL,
-        phone VARCHAR(20) NOT NULL,
-        national_id VARCHAR(50) NOT NULL UNIQUE,
-        password_hash VARCHAR(255) NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB CHARSET=utf8mb4;
-    `);
-    
-    // objection table
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS objection (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        farmer_id INT NOT NULL,
-        code VARCHAR(50) NOT NULL UNIQUE,
-        transaction_number VARCHAR(100) NOT NULL,
-        status ENUM('pending','reviewed','resolved') DEFAULT 'pending',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (farmer_id) REFERENCES farmer(id)
-      ) ENGINE=InnoDB CHARSET=utf8mb4;
-    `);
-    
-    // password_reset
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS password_reset (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        farmer_id INT NOT NULL,
-        national_id VARCHAR(50) NOT NULL,
-        reset_token VARCHAR(100) NOT NULL,
-        verification_code VARCHAR(6) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        expires_at TIMESTAMP,
-        FOREIGN KEY (farmer_id) REFERENCES farmer(id)
-      ) ENGINE=InnoDB CHARSET=utf8mb4;
-    `);
-    
-    // sessions (if you later wire up express-mysql-session)
-    await connection.query(`
-      CREATE TABLE IF NOT EXISTS sessions (
-        session_id VARCHAR(128) PRIMARY KEY,
-        expires INT UNSIGNED NOT NULL,
-        data MEDIUMTEXT
-      ) ENGINE=InnoDB CHARSET=utf8mb4;
-    `);
-    
-    console.log('Database schema initialization completed successfully');
-  } catch (err) {
-    console.error('Error initializing database schema:', err);
-    throw err;
-  } finally {
-    if (connection) connection.release();
-  }
+
+  if (connection) connection.release();
 }
+
 
 // — JWT Helpers —
 function signToken(payload) {
@@ -152,13 +95,12 @@ async function canSubmit(farmerId) {
 app.post('/farmer/register', async (req, res) => {
   const { first_name, last_name, phone, national_id, password } = req.body;
   try {
-    const hash = await bcrypt.hash(password, 10);
-    await pool.execute(
-      `INSERT INTO farmer
-         (first_name,last_name,phone,national_id,password_hash)
-       VALUES (?,?,?,?,?)`,
-      [first_name, last_name, phone, national_id, hash]
-    );
+await pool.execute(
+  `INSERT INTO farmer
+     (first_name,last_name,phone,national_id,password)
+   VALUES (?,?,?,?,?)`,
+  [first_name, last_name, phone, national_id, password]
+);
     res.json({ message: 'Registered' });
   } catch (e) {
     console.error(e);
@@ -173,9 +115,9 @@ app.post('/farmer/login', async (req, res) => {
     'SELECT * FROM farmer WHERE national_id=?',
     [national_id]
   );
-  if (!farmer || !await bcrypt.compare(password, farmer.password_hash)) {
-    return res.status(401).json({ message: 'Invalid credentials' });
-  }
+if (!farmer || password !== farmer.password) {
+  return res.status(401).json({ message: 'Invalid credentials' });
+}
   const token = signToken({ id: farmer.id, role: 'farmer' });
   res.json({ token, farmer: { id: farmer.id, first_name: farmer.first_name, last_name: farmer.last_name } });
 });
@@ -224,10 +166,10 @@ app.post('/farmer/reset-password', async (req, res) => {
   );
   if (!row) return res.status(400).json({ message: 'Invalid or expired token' });
 
-  const hash = await bcrypt.hash(password, 10);
+  
   await pool.execute(
-    'UPDATE farmer SET password_hash=? WHERE id=?',
-    [hash, row.farmer_id]
+    'UPDATE farmer SET password=? WHERE id=?',
+    [password, row.farmer_id]
   );
   await pool.execute('DELETE FROM password_reset WHERE farmer_id=?', [row.farmer_id]);
   res.json({ message: 'Password reset' });
@@ -264,8 +206,7 @@ app.post('/objection', requireAuth, async (req, res) => {
 // 9) Admin Login
 app.post('/admin/login', async (req, res) => {
   const { username, password } = req.body;
-  if (username !== process.env.ADMIN_USERNAME) return res.status(401).json({ message: 'Bad creds' });
-  if (!await bcrypt.compare(password, process.env.ADMIN_PASSWORD_HASH)) {
+  if (username !== process.env.ADMIN_USERNAME || password !== process.env.ADMIN_PASSWORD) {
     return res.status(401).json({ message: 'Bad creds' });
   }
   const token = signToken({ role: 'admin' });
