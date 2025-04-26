@@ -19,7 +19,7 @@ spec:
       - name: grafana
         image: grafana/grafana:10.2.3
         ports:
-        - containerPort: 3333
+        - containerPort: 6000
         env:
         - name: GF_SECURITY_ADMIN_PASSWORD
           valueFrom:
@@ -55,6 +55,6 @@ spec:
   selector:
     app: grafana
   ports:
-  - port: 3333
-    targetPort: 3333
+  - port: 6000
+    targetPort: 6000
   type: LoadBalancer

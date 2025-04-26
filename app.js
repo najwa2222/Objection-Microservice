@@ -215,40 +215,55 @@ app.post('/admin/login', async (req, res) => {
   res.json({ token });
 });
 
-// 10) Admin → list pending/reviewed (dashboard)
-// Admin → list pending/reviewed (dashboard) *with* pagination
+
+// 10) Admin → list pending/reviewed (dashboard) *with* pagination & error logging
 app.get('/admin/objections', requireAuth, async (req, res) => {
-  if (req.user.role !== 'admin') 
+  if (req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Forbidden' });
+  }
 
-  const page  = parseInt(req.query.page)  || 1;
-  const limit = 10;
-  const offset= (page - 1) * limit;
+  const page   = parseInt(req.query.page)  || 1;
+  const limit  = 10;
+  const offset = (page - 1) * limit;
+  const search = req.query.search || '';
 
-  // fetch one page of pending/reviewed:
-  const [rows] = await pool.execute(
-    `SELECT * 
-       FROM objection 
-      WHERE status IN("pending","reviewed")
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?`,
-    [limit, offset]
-  );
+  try {
+    // 1) pull the page of rows
+    const [rows] = await pool.execute(
+      `SELECT * 
+         FROM objection 
+        WHERE status IN("pending","reviewed")
+          ${search ? 'AND (code LIKE ? OR ?)' : ''}
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?`,
+      search
+        ? [`%${search}%`, `%${search}%`, limit, offset]
+        : [limit, offset]
+    );
 
-  // total count for pagination:
-  const [[{ total }]] = await pool.execute(
-    `SELECT COUNT(*) AS total
-       FROM objection
-      WHERE status IN("pending","reviewed")`
-  );
+    // 2) total count for pagination
+    const [[{ total }]] = await pool.execute(
+      `SELECT COUNT(*) as total
+         FROM objection
+        WHERE status IN("pending","reviewed")
+          ${search ? 'AND (code LIKE ? OR ?)' : ''}`,
+      search ? [`%${search}%`, `%${search}%`] : []
+    );
 
-  res.json({
-    rows,
-    page,
-    totalPages: Math.ceil(total / limit),
-    searchTerm: req.query.search || ''
-  });
+    // 3) return the uniform shape your front-end expects
+    res.json({
+      rows,
+      page,
+      totalPages: Math.ceil(total / limit),
+      searchTerm: search
+    });
+
+  } catch (err) {
+    console.error('❌ [API] GET /admin/objections error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
+
 
 // 11) Admin → resolve objection (dashboard)
 app.post('/admin/resolve-objection', requireAuth, async (req, res) => {
