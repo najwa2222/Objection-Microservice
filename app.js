@@ -215,18 +215,18 @@ app.post('/admin/login', async (req, res) => {
   res.json({ token });
 });
 
-
-// 10) Admin → list pending/reviewed (dashboard) with pagination
+// Admin → list pending/reviewed (dashboard) with pagination
 app.get('/admin/objections', requireAuth, async (req, res) => {
-  if (req.user.role !== 'admin') 
+  if (req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Forbidden' });
+  }
 
   const page   = parseInt(req.query.page)  || 1;
   const limit  = 10;
   const offset = (page - 1) * limit;
   const search = req.query.search || '';
 
-  // Build base SQL + params
+  // Build the base query and parameters
   let sql    = 'SELECT * FROM objection WHERE status IN("pending","reviewed")';
   const params = [];
 
@@ -235,14 +235,14 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
     params.push(`%${search}%`);
   }
 
-  // Add ordering + pagination
+  // Append ordering and pagination placeholders
   sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
 
   try {
-    // 1) Fetch the page of rows
+    // 1) Execute with exactly [ ...params, limit, offset ]
     const [rows] = await pool.execute(sql, [...params, limit, offset]);
 
-    // 2) Fetch total count (for pages calculation)
+    // 2) Count total for pagination
     let countSql    = 'SELECT COUNT(*) AS total FROM objection WHERE status IN("pending","reviewed")';
     const countParams = [];
     if (search) {
@@ -251,18 +251,20 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
     }
     const [[{ total }]] = await pool.execute(countSql, countParams);
 
-    // 3) Return the exact shape the front-end expects
+    // 3) Return the shape front-end expects
     res.json({
       rows,
       page,
       totalPages: Math.ceil(total / limit),
       searchTerm: search
     });
+
   } catch (err) {
     console.error('❌ [API] GET /admin/objections error:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 
 
