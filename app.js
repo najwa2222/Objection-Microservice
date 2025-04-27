@@ -216,8 +216,6 @@ app.post('/admin/login', async (req, res) => {
 });
 
 // Admin → list pending/reviewed (dashboard) with pagination
-// backend-service/app.js
-
 app.get('/admin/objections', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') 
     return res.status(403).json({ message: 'Forbidden' });
@@ -227,7 +225,7 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
   const offset = (page - 1) * limit;
   const search = req.query.search || '';
 
-  // Build SQL + params
+  // Build SQL & params
   let sql    = 'SELECT * FROM objection WHERE status IN("pending","reviewed")';
   const params = [];
 
@@ -236,17 +234,15 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
     params.push(`%${search}%`);
   }
 
-  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-  const allParams = [...params, limit, offset];
-
-  // DEBUG LOGS
-  console.log('▶️ [API] GET /admin/objections SQL:', sql);
-  console.log('▶️ [API] GET /admin/objections PARAMS:', allParams);
+  // Inline pagination rather than binding it
+  sql += ' ORDER BY created_at DESC';
+  sql += ` LIMIT ${limit} OFFSET ${offset}`;
 
   try {
-    const [rows] = await pool.execute(sql, allParams);
+    // Only bind the search term (if any)
+    const [rows] = await pool.execute(sql, params);
 
-    // count total...
+    // Count total for pagination (no LIMIT/OFFSET here)
     let countSql    = 'SELECT COUNT(*) AS total FROM objection WHERE status IN("pending","reviewed")';
     const countParams = [];
     if (search) {
@@ -266,9 +262,6 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 });
-
-
-
 
 
 // 11) Admin → resolve objection (dashboard)
@@ -293,37 +286,49 @@ app.post('/admin/objection/:id/review', requireAuth, async (req, res) => {
 
 // Admin → list resolved (archive)
 app.get('/admin/archive', requireAuth, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
-  
-  const page = parseInt(req.query.page) || 1;
-  const limit = 10;
+  if (req.user.role !== 'admin') 
+    return res.status(403).json({ message: 'Forbidden' });
+
+  const page   = parseInt(req.query.page)  || 1;
+  const limit  = 10;
   const offset = (page - 1) * limit;
   const search = req.query.search || '';
-  
-  let query = 'SELECT o.*, f.first_name, f.last_name FROM objection o JOIN farmer f ON o.farmer_id = f.id WHERE o.status = "resolved"';
-  let params = [];
-  
+
+  let sql    = `
+    SELECT o.*, f.first_name, f.last_name
+      FROM objection o
+      JOIN farmer f ON o.farmer_id = f.id
+     WHERE o.status = "resolved"
+  `;
+  const params = [];
+
   if (search) {
-    query += ' AND (o.code LIKE ? OR f.first_name LIKE ? OR f.last_name LIKE ?)';
-    const searchParam = `%${search}%`;
-    params = [searchParam, searchParam, searchParam];
+    sql += ' AND (o.code LIKE ? OR f.first_name LIKE ? OR f.last_name LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
-  
-  const [rows] = await pool.execute(query + ' ORDER BY o.updated_at DESC LIMIT ? OFFSET ?', 
-    [...params, limit, offset]);
-  
-  // Get total count for pagination
-  const [[countResult]] = await pool.execute(
-    'SELECT COUNT(*) as total FROM objection WHERE status = "resolved"'
-  );
-  
-  res.json({
-    rows,
-    page,
-    totalPages: Math.ceil(countResult.total / limit),
-    searchTerm: search
-  });
+
+  sql += ' ORDER BY o.updated_at DESC';
+  sql += ` LIMIT ${limit} OFFSET ${offset}`;
+
+  try {
+    const [rows] = await pool.execute(sql, params);
+
+    const [[{ total }]] = await pool.execute(
+      'SELECT COUNT(*) AS total FROM objection WHERE status = "resolved"'
+    );
+
+    res.json({
+      rows,
+      page,
+      totalPages: Math.ceil(total / limit),
+      searchTerm: search
+    });
+  } catch (err) {
+    console.error('❌ [API] GET /admin/archive error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
+
 
 // 12) Health Check
 app.get('/health', async (req, res) => {
