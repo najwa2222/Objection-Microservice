@@ -216,53 +216,54 @@ app.post('/admin/login', async (req, res) => {
 });
 
 
-// 10) Admin → list pending/reviewed (dashboard) *with* pagination & error logging
+// 10) Admin → list pending/reviewed (dashboard) with pagination
 app.get('/admin/objections', requireAuth, async (req, res) => {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'admin') 
     return res.status(403).json({ message: 'Forbidden' });
-  }
 
   const page   = parseInt(req.query.page)  || 1;
   const limit  = 10;
   const offset = (page - 1) * limit;
   const search = req.query.search || '';
 
+  // Build base SQL + params
+  let sql    = 'SELECT * FROM objection WHERE status IN("pending","reviewed")';
+  const params = [];
+
+  if (search) {
+    sql += ' AND code LIKE ?';
+    params.push(`%${search}%`);
+  }
+
+  // Add ordering + pagination
+  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+
   try {
-    // 1) pull the page of rows
-    const [rows] = await pool.execute(
-      `SELECT * 
-         FROM objection 
-        WHERE status IN("pending","reviewed")
-          ${search ? 'AND (code LIKE ? OR ?)' : ''}
-        ORDER BY created_at DESC
-        LIMIT ? OFFSET ?`,
-      search
-        ? [`%${search}%`, `%${search}%`, limit, offset]
-        : [limit, offset]
-    );
+    // 1) Fetch the page of rows
+    const [rows] = await pool.execute(sql, [...params, limit, offset]);
 
-    // 2) total count for pagination
-    const [[{ total }]] = await pool.execute(
-      `SELECT COUNT(*) as total
-         FROM objection
-        WHERE status IN("pending","reviewed")
-          ${search ? 'AND (code LIKE ? OR ?)' : ''}`,
-      search ? [`%${search}%`, `%${search}%`] : []
-    );
+    // 2) Fetch total count (for pages calculation)
+    let countSql    = 'SELECT COUNT(*) AS total FROM objection WHERE status IN("pending","reviewed")';
+    const countParams = [];
+    if (search) {
+      countSql += ' AND code LIKE ?';
+      countParams.push(`%${search}%`);
+    }
+    const [[{ total }]] = await pool.execute(countSql, countParams);
 
-    // 3) return the uniform shape your front-end expects
+    // 3) Return the exact shape the front-end expects
     res.json({
       rows,
       page,
       totalPages: Math.ceil(total / limit),
       searchTerm: search
     });
-
   } catch (err) {
     console.error('❌ [API] GET /admin/objections error:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 
 // 11) Admin → resolve objection (dashboard)
