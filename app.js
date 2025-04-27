@@ -55,7 +55,7 @@ app.use((req,res,next) => {
 async function execWithMetrics(sql, params) {
   const op = sql.trim().split(' ')[0];
   const endDb = dbHistogram.startTimer({ operation: op });
-  const result = await pool.execute(sql, params);
+  const result = await execWithMetrics(sql, params);
   endDb();
   dbCounter.inc({ operation: op });
   return result;
@@ -127,7 +127,7 @@ function requireAuth(req, res, next) {
 
 // — Utility: check existing pending/reviewed objection —
 async function canSubmit(farmerId) {
-  const [rows] = await pool.execute(
+  const [rows] = await execWithMetrics(
     `SELECT 1 FROM objection 
      WHERE farmer_id=? AND status IN('pending','reviewed')`,
     [farmerId]
@@ -141,7 +141,7 @@ async function canSubmit(farmerId) {
 app.post('/farmer/register', async (req, res) => {
   const { first_name, last_name, phone, national_id, password } = req.body;
   try {
-await pool.execute(
+await execWithMetrics(
   `INSERT INTO farmer
      (first_name,last_name,phone,national_id,password)
    VALUES (?,?,?,?,?)`,
@@ -158,7 +158,7 @@ await pool.execute(
 app.post('/farmer/login', async (req, res) => {
   console.log('▶️ [API] /farmer/login payload:', req.body);
   const { national_id, password } = req.body;
-  const [[farmer]] = await pool.execute(
+  const [[farmer]] = await execWithMetrics(
     'SELECT * FROM farmer WHERE national_id=?',
     [national_id]
   );
@@ -172,7 +172,7 @@ if (!farmer || password !== farmer.password) {
 // 3) Forgot Password → send code
 app.post('/farmer/forgot-password', async (req, res) => {
   const { national_id, phone } = req.body;
-  const [[farmer]] = await pool.execute(
+  const [[farmer]] = await execWithMetrics(
     'SELECT * FROM farmer WHERE national_id=? AND phone=?',
     [national_id, phone]
   );
@@ -180,8 +180,8 @@ app.post('/farmer/forgot-password', async (req, res) => {
 
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const token = crypto.randomBytes(32).toString('hex');
-  await pool.execute('DELETE FROM password_reset WHERE farmer_id=?', [farmer.id]);
-  await pool.execute(
+  await execWithMetrics('DELETE FROM password_reset WHERE farmer_id=?', [farmer.id]);
+  await execWithMetrics(
     `INSERT INTO password_reset
        (farmer_id, national_id, reset_token, verification_code, expires_at)
      VALUES (?,?,?,?,DATE_ADD(NOW(), INTERVAL 2 HOUR))`,
@@ -194,7 +194,7 @@ app.post('/farmer/forgot-password', async (req, res) => {
 // 4) Verify Code
 app.post('/farmer/verify-code', async (req, res) => {
   const { national_id, verification_code } = req.body;
-  const [[row]] = await pool.execute(
+  const [[row]] = await execWithMetrics(
     `SELECT * FROM password_reset 
      WHERE national_id=? AND verification_code=? AND expires_at>NOW()`,
     [national_id, verification_code]
@@ -206,7 +206,7 @@ app.post('/farmer/verify-code', async (req, res) => {
 // 5) Reset Password
 app.post('/farmer/reset-password', async (req, res) => {
   const { national_id, reset_token, password } = req.body;
-  const [[row]] = await pool.execute(
+  const [[row]] = await execWithMetrics(
     `SELECT * FROM password_reset 
      WHERE national_id=? AND reset_token=? AND expires_at>NOW()`,
     [national_id, reset_token]
@@ -214,17 +214,17 @@ app.post('/farmer/reset-password', async (req, res) => {
   if (!row) return res.status(400).json({ message: 'Invalid or expired token' });
 
   
-  await pool.execute(
+  await execWithMetrics(
     'UPDATE farmer SET password=? WHERE id=?',
     [password, row.farmer_id]
   );
-  await pool.execute('DELETE FROM password_reset WHERE farmer_id=?', [row.farmer_id]);
+  await execWithMetrics('DELETE FROM password_reset WHERE farmer_id=?', [row.farmer_id]);
   res.json({ message: 'Password reset' });
 });
 
 // 6) List Objections (farmer)
 app.get('/objection', requireAuth, async (req, res) => {
-  const [rows] = await pool.execute(
+  const [rows] = await execWithMetrics(
     'SELECT * FROM objection WHERE farmer_id=? ORDER BY created_at DESC',
     [req.user.id]
   );
@@ -242,7 +242,7 @@ app.post('/objection', requireAuth, async (req, res) => {
     return res.status(403).json({ message: 'Already have pending/reviewed' });
   }
   const code = `OBJ-${Math.floor(1000 + Math.random() * 9000)}`;
-  await pool.execute(
+  await execWithMetrics(
     `INSERT INTO objection (farmer_id, code, transaction_number, status)
      VALUES (?,?,?,'pending')`,
     [req.user.id, code, req.body.transaction_number]
@@ -286,7 +286,7 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
 
   try {
     // Only bind the search term (if any)
-    const [rows] = await pool.execute(sql, params);
+    const [rows] = await execWithMetrics(sql, params);
 
     // Count total for pagination (no LIMIT/OFFSET here)
     let countSql    = 'SELECT COUNT(*) AS total FROM objection WHERE status IN("pending","reviewed")';
@@ -295,7 +295,7 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
       countSql += ' AND code LIKE ?';
       countParams.push(`%${search}%`);
     }
-    const [[{ total }]] = await pool.execute(countSql, countParams);
+    const [[{ total }]] = await execWithMetrics(countSql, countParams);
 
     res.json({
       rows,
@@ -314,19 +314,19 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
 app.post('/admin/resolve-objection', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
   const { objection_id } = req.body;
-  await pool.execute('UPDATE objection SET status="resolved" WHERE id=?', [objection_id]);
+  await execWithMetrics('UPDATE objection SET status="resolved" WHERE id=?', [objection_id]);
   res.json({ message: 'Objection resolved' });
 });
 
 app.post('/admin/objection/:id/resolve', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
-  await pool.execute('UPDATE objection SET status="resolved" WHERE id=?', [req.params.id]);
+  await execWithMetrics('UPDATE objection SET status="resolved" WHERE id=?', [req.params.id]);
   res.json({ message: 'Objection resolved' });
 });
 
 app.post('/admin/objection/:id/review', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Forbidden' });
-  await pool.execute('UPDATE objection SET status="reviewed" WHERE id=?', [req.params.id]);
+  await execWithMetrics('UPDATE objection SET status="reviewed" WHERE id=?', [req.params.id]);
   res.json({ message: 'Objection reviewed' });
 });
 
@@ -357,9 +357,9 @@ app.get('/admin/archive', requireAuth, async (req, res) => {
   sql += ` LIMIT ${limit} OFFSET ${offset}`;
 
   try {
-    const [rows] = await pool.execute(sql, params);
+    const [rows] = await execWithMetrics(sql, params);
 
-    const [[{ total }]] = await pool.execute(
+    const [[{ total }]] = await execWithMetrics(
       'SELECT COUNT(*) AS total FROM objection WHERE status = "resolved"'
     );
 
