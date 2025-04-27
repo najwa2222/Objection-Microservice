@@ -15,6 +15,52 @@ const app = express();
 const register = new Prometheus.Registry();
 Prometheus.collectDefaultMetrics({ register });
 
+const httpCounter = new Prometheus.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method','route','code'],
+});
+const httpHistogram = new Prometheus.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method','route','code'],
+  buckets: [0.01,0.05,0.1,0.5,1,2],
+});
+
+// DB metrics
+const dbCounter = new Prometheus.Counter({
+  name: 'db_query_total',
+  help: 'Total number of database queries',
+  labelNames: ['operation'],
+});
+const dbHistogram = new Prometheus.Histogram({
+  name: 'db_query_duration_seconds',
+  help: 'Duration of DB queries in seconds',
+  labelNames: ['operation'],
+  buckets: [0.001,0.01,0.1,1],
+});
+
+// Middleware to collect HTTP metrics
+app.use((req,res,next) => {
+  const route = req.route?.path || req.path;
+  const end = httpHistogram.startTimer({ method: req.method, route });
+  res.on('finish', () => {
+    httpCounter.inc({ method: req.method, route, code: res.statusCode });
+    end({ code: res.statusCode });
+  });
+  next();
+});
+
+// Helper for DB queries
+async function execWithMetrics(sql, params) {
+  const op = sql.trim().split(' ')[0];
+  const endDb = dbHistogram.startTimer({ operation: op });
+  const result = await pool.execute(sql, params);
+  endDb();
+  dbCounter.inc({ operation: op });
+  return result;
+}
+
 // — Security & Parsing —
 app.use(helmet({
   contentSecurityPolicy: {

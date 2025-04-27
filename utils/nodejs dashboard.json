@@ -19,7 +19,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{app=\"crda-app\"}[1m])) by (route)",
+          "expr": "sum(rate(http_requests_total{app=\"objection-app\"}[1m])) by (route)",
           "refId": "A"
         }
       ]
@@ -32,7 +32,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{app=\"crda-app\"}[5m])) by (le, route))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{app=\"objection-app\"}[5m])) by (le, route))",
           "refId": "A"
         }
       ],
@@ -46,7 +46,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum(rate(db_query_total{app=\"crda-app\"}[1m])) by (operation)",
+          "expr": "sum(rate(db_query_total{app=\"objection-app\"}[1m])) by (operation)",
           "refId": "A"
         }
       ]
@@ -59,7 +59,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "avg(rate(db_query_duration_seconds_sum{app=\"crda-app\"}[1m])) / avg(rate(db_query_duration_seconds_count{app=\"crda-app\"}[1m]))",
+          "expr": "avg(rate(db_query_duration_seconds_sum{app=\"objection-app\"}[1m])) / avg(rate(db_query_duration_seconds_count{app=\"objection-app\"}[1m]))",
           "refId": "A"
         }
       ],
@@ -73,7 +73,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "process_resident_memory_bytes{app=\"crda-app\"}",
+          "expr": "process_resident_memory_bytes{app=\"objection-app\"}",
           "refId": "A"
         }
       ],
@@ -87,7 +87,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "rate(process_cpu_seconds_total{app=\"crda-app\"}[1m])",
+          "expr": "rate(process_cpu_seconds_total{app=\"objection-app\"}[1m])",
           "refId": "A"
         }
       ],
@@ -101,7 +101,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "nodejs_eventloop_lag_seconds{app=\"crda-app\"}",
+          "expr": "nodejs_eventloop_lag_seconds{app=\"objection-app\"}",
           "refId": "A"
         }
       ],
@@ -115,7 +115,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "active_sessions{app=\"crda-app\"}",
+          "expr": "active_sessions{app=\"objection-app\"}",
           "refId": "A"
         }
       ]
