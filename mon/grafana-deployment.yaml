@@ -32,6 +32,12 @@ spec:
           value: "false"
         - name: GF_INSTALL_PLUGINS
           value: "grafana-piechart-panel,grafana-clock-panel"
+        - name: GF_SERVER_HTTP_PORT
+          value: "6000"
+        - name: GF_SERVER_DOMAIN
+          value: "localhost"
+        - name: GF_SERVER_ROOT_URL
+          value: "http://localhost:8080"
         volumeMounts:
         - name: grafana-storage
           mountPath: /var/lib/grafana
@@ -55,6 +61,6 @@ spec:
   selector:
     app: grafana
   ports:
-  - port: 6000
+  - port: 8080
     targetPort: 6000
   type: LoadBalancer
