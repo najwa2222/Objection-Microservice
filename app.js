@@ -252,26 +252,28 @@ app.get('/admin/objections', requireAuth, async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = 10;
   const offset = (page - 1) * limit;
-  const search = req.query.search || '';
+  const search = (req.query.search || '').trim(); // Trim the search parameter
 
   let sql = 'SELECT * FROM objection WHERE status IN("pending","reviewed")';
   const params = [];
   if (search) {
-    sql += ' AND code LIKE ?';
-    params.push(`%${search}%`);
+    sql += ' AND (code LIKE ? OR transaction_number LIKE ?)'; // Add transaction_number to search
+    params.push(`%${search}%`, `%${search}%`);
   }
   sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
   params.push(limit, offset);
 
   try {
-    const [rows] = await execWithMetrics(sql, params);
+    const rows = await execWithMetrics(sql, params);
     let countSql = 'SELECT COUNT(*) AS total FROM objection WHERE status IN("pending","reviewed")';
     const countParams = [];
     if (search) {
-      countSql += ' AND code LIKE ?'; countParams.push(`%${search}%`);
+      countSql += ' AND (code LIKE ? OR transaction_number LIKE ?)'; // Also update here
+      countParams.push(`%${search}%`, `%${search}%`);
     }
-    const [[{ total }]] = await execWithMetrics(countSql, countParams);
-    res.json({ rows, page, totalPages: Math.ceil(total / limit), searchTerm: search });
+    const countResult = await execWithMetrics(countSql, countParams);
+    const total = countResult[0][0].total;
+    res.json({ rows: rows[0], page, totalPages: Math.ceil(total / limit), searchTerm: search });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error' });
@@ -306,21 +308,22 @@ app.get('/admin/archive', requireAuth, async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = 10;
   const offset = (page - 1) * limit;
-  const search = req.query.search || '';
+  const search = (req.query.search || '').trim(); // Trim the search parameter
 
   let sql = `SELECT o.*, f.first_name, f.last_name FROM objection o JOIN farmer f ON o.farmer_id=f.id WHERE o.status="resolved"`;
   const params = [];
   if (search) {
-    sql += ' AND (o.code LIKE ? OR f.first_name LIKE ? OR f.last_name LIKE ?)';
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    sql += ' AND (o.code LIKE ? OR f.first_name LIKE ? OR f.last_name LIKE ? OR o.transaction_number LIKE ?)'; // Add transaction_number
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
   sql += ' ORDER BY o.updated_at DESC LIMIT ? OFFSET ?';
   params.push(limit, offset);
 
   try {
-    const [rows] = await execWithMetrics(sql, params);
-    const [[{ total }]] = await execWithMetrics('SELECT COUNT(*) AS total FROM objection WHERE status="resolved"');
-    res.json({ rows, page, totalPages: Math.ceil(total / limit), searchTerm: search });
+    const rows = await execWithMetrics(sql, params);
+    const countResult = await execWithMetrics('SELECT COUNT(*) AS total FROM objection WHERE status="resolved"');
+    const total = countResult[0][0].total;
+    res.json({ rows: rows[0], page, totalPages: Math.ceil(total / limit), searchTerm: search });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error' });
