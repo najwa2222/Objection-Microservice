@@ -103,10 +103,10 @@ app.use((req, res, next) => {
 async function execWithMetrics(sql, params) {
   const operation = sql.trim().split(' ')[0];
   const endDb = dbHistogram.startTimer({ operation });
-  const [rows] = await pool.query(sql, params);
+  const result = await pool.query(sql, params);
   endDb();
   dbCounter.inc({ operation });
-  return rows;
+  return result;
 }
 
 // JWT helpers
