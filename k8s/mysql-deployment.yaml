@@ -23,10 +23,8 @@ spec:
             secretKeyRef:
               name: mysql-secret
               key: root-password
-        - name: MYSQL_DATABASE
-          value: "base_objection"
         - name: MYSQL_USER
-          value: "objc_user"
+          value: "app_user"
         - name: MYSQL_PASSWORD
           valueFrom:
             secretKeyRef:

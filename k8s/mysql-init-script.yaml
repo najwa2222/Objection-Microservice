@@ -4,63 +4,171 @@ metadata:
   name: mysql-init-script
   namespace: crda-namespace
 data:
-  init.sh: |
-    #!/bin/bash
-    cat << EOF > /tmp/init.sql
+  init.sql: |
+    -- Create both databases
+    CREATE DATABASE IF NOT EXISTS base_crda;
     CREATE DATABASE IF NOT EXISTS base_objection;
+
+    -- Create common user for both databases
+    CREATE USER IF NOT EXISTS 'app_user'@'%' IDENTIFIED BY 'placeholder_password';
+    GRANT SELECT, INSERT, UPDATE, DELETE ON base_crda.* TO 'app_user'@'%';
+    GRANT SELECT, INSERT, UPDATE, DELETE ON base_objection.* TO 'app_user'@'%';
+
+    -- Set up base_objection database
     USE base_objection;
 
     SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
     START TRANSACTION;
     SET time_zone = "+00:00";
 
-    CREATE USER IF NOT EXISTS 'objc_user'@'%' IDENTIFIED BY '$MYSQL_PASSWORD';
-    GRANT SELECT, INSERT, UPDATE, DELETE ON base_objection.* TO 'objc_user'@'%';
-
     -- Create table for farmer
-    CREATE TABLE IF NOT EXISTS \`farmer\` (
-      \`id\` INT AUTO_INCREMENT PRIMARY KEY,
-      \`first_name\` VARCHAR(100) NOT NULL,
-      \`last_name\` VARCHAR(100) NOT NULL,
-      \`phone\` VARCHAR(20) NOT NULL,
-      \`national_id\` VARCHAR(50) NOT NULL UNIQUE,
-      \`password\` VARCHAR(255) NOT NULL,
-      \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP
+    CREATE TABLE IF NOT EXISTS `farmer` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `first_name` VARCHAR(100) NOT NULL,
+      `last_name` VARCHAR(100) NOT NULL,
+      `phone` VARCHAR(20) NOT NULL,
+      `national_id` VARCHAR(50) NOT NULL UNIQUE,
+      `password` VARCHAR(255) NOT NULL,
+      `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB CHARSET=utf8mb4;
 
     -- Create table for objection
-    CREATE TABLE IF NOT EXISTS \`objection\` (
-      \`id\` INT AUTO_INCREMENT PRIMARY KEY,
-      \`farmer_id\` INT NOT NULL,
-      \`code\` VARCHAR(50) NOT NULL UNIQUE,
-      \`transaction_number\` VARCHAR(100) NOT NULL,
-      \`status\` ENUM('pending', 'reviewed', 'resolved') DEFAULT 'pending',
-      \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP,
-      \`updated_at\` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (\`farmer_id\`) REFERENCES \`farmer\`(\`id\`)
+    CREATE TABLE IF NOT EXISTS `objection` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `farmer_id` INT NOT NULL,
+      `code` VARCHAR(50) NOT NULL UNIQUE,
+      `transaction_number` VARCHAR(100) NOT NULL,
+      `status` ENUM('pending', 'reviewed', 'resolved') DEFAULT 'pending',
+      `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+      `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (`farmer_id`) REFERENCES `farmer`(`id`)
     ) ENGINE=InnoDB CHARSET=utf8mb4;
 
     -- Create table for password_reset
-    CREATE TABLE IF NOT EXISTS \`password_reset\` (
-      \`id\` INT AUTO_INCREMENT PRIMARY KEY,
-      \`farmer_id\` INT NOT NULL,
-      \`national_id\` VARCHAR(50) NOT NULL,
-      \`reset_token\` VARCHAR(100) NOT NULL,
-      \`verification_code\` VARCHAR(6) NOT NULL,
-      \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      \`expires_at\` TIMESTAMP,
-      FOREIGN KEY (\`farmer_id\`) REFERENCES \`farmer\`(\`id\`)
+    CREATE TABLE IF NOT EXISTS `password_reset` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `farmer_id` INT NOT NULL,
+      `national_id` VARCHAR(50) NOT NULL,
+      `reset_token` VARCHAR(100) NOT NULL,
+      `verification_code` VARCHAR(6) NOT NULL,
+      `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      `expires_at` TIMESTAMP,
+      FOREIGN KEY (`farmer_id`) REFERENCES `farmer`(`id`)
     ) ENGINE=InnoDB CHARSET=utf8mb4;
 
-    -- Create table for sessions
-    CREATE TABLE IF NOT EXISTS \`sessions\` (
-      \`session_id\` VARCHAR(128) PRIMARY KEY,
-      \`expires\` INT UNSIGNED NOT NULL,
-      \`data\` MEDIUMTEXT
+    -- Create table for sessions in base_objection
+    CREATE TABLE IF NOT EXISTS `sessions` (
+      `session_id` VARCHAR(128) PRIMARY KEY,
+      `expires` INT UNSIGNED NOT NULL,
+      `data` MEDIUMTEXT
     ) ENGINE=InnoDB CHARSET=utf8mb4;
 
     COMMIT;
-    EOF
 
-    mysql -uroot -p$MYSQL_ROOT_PASSWORD < /tmp/init.sql
-    rm /tmp/init.sql
+    -- Set up base_crda database
+    USE base_crda;
+
+    SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+    START TRANSACTION;
+    SET time_zone = "+00:00";
+
+    -- Create table for rapport
+    CREATE TABLE `rapport` (
+      `id` int(11) NOT NULL AUTO_INCREMENT,
+      `nom` varchar(255) NOT NULL,
+      `prenom` varchar(255) NOT NULL,
+      `cin` varchar(255) NOT NULL,
+      `numero_transaction` varchar(255) DEFAULT NULL,
+      `sujet` varchar(255) NOT NULL,
+      `surface` decimal(10,2) NOT NULL,
+      `limites_terrain` text NOT NULL,
+      `localisation` varchar(255) NOT NULL,
+      `superficie_batiments_anciens` decimal(10,2) NOT NULL,
+      `observations` text DEFAULT NULL,
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `idx_cin_sujet` (`cin`, `sujet`),
+      KEY `idx_cin` (`cin`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+    -- Create table for results
+    CREATE TABLE `results` (
+      `id` int(11) NOT NULL AUTO_INCREMENT,
+      `sujet` varchar(255) NOT NULL,
+      `nom` varchar(255) NOT NULL,
+      `prenom` varchar(255) NOT NULL,
+      `cin` varchar(255) NOT NULL,
+      `numero_transaction` varchar(255) NOT NULL,
+      `statut` enum('بصدد الدرس','مقبول','مرفوض') NOT NULL DEFAULT 'بصدد الدرس',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `unique_service` (`cin`,`sujet`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+    -- Create table for services_utilisateur
+    CREATE TABLE `services_utilisateur` (
+      `id` int(11) NOT NULL AUTO_INCREMENT,
+      `prenom` varchar(255) DEFAULT NULL,
+      `nom` varchar(255) DEFAULT NULL,
+      `cin` varchar(255) NOT NULL,
+      `numero_transaction` varchar(255) DEFAULT NULL,
+      `certificat_propriete_terre` tinyint(1) DEFAULT NULL,
+      `copie_piece_identite_fermier` tinyint(1) DEFAULT NULL,
+      `copie_piece_identite_nationale` tinyint(1) DEFAULT NULL,
+      `demande_but` tinyint(1) DEFAULT NULL,
+      `copie_contrat_location_terrain` tinyint(1) DEFAULT NULL,
+      `autres_documents` tinyint(1) DEFAULT NULL,
+      `sujet` varchar(255) NOT NULL,
+      `status` varchar(255) NOT NULL DEFAULT 'قيد الانتظار',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `idx_cin_sujet` (`cin`,`sujet`),
+      KEY `idx_cin` (`cin`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+    -- Create table for sessions in base_crda
+    CREATE TABLE `sessions` (
+      `session_id` varchar(128) NOT NULL,
+      `expires` int(11) UNSIGNED NOT NULL,
+      `data` mediumtext DEFAULT NULL,
+      PRIMARY KEY (`session_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+    -- Create table for utilisateur
+    CREATE TABLE `utilisateur` (
+      `id` int(11) NOT NULL AUTO_INCREMENT,
+      `nom_user` varchar(100) NOT NULL,
+      `prenom_user` varchar(100) NOT NULL,
+      `sex_user` enum('homme','femme') NOT NULL,
+      `cin_user` varchar(15) NOT NULL,
+      `email_user` varchar(255) NOT NULL,
+      `password_user` varchar(255) NOT NULL,
+      `role_user` enum('directeur','gerant','chef_dentreprise','pending') NOT NULL,
+      `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+      `status_user` enum('pending','approved','rejected') DEFAULT 'pending',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `email_unique` (`email_user`),
+      UNIQUE KEY `cin_unique` (`cin_user`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+    -- Insert data into rapport
+    INSERT INTO `rapport` (`id`, `nom`, `prenom`, `cin`, `numero_transaction`, `sujet`, `surface`, `limites_terrain`, `localisation`, `superficie_batiments_anciens`, `observations`) VALUES
+    (4, 'test', 'test', '12345678', '12345678', 'حفر بئر', '1234.00', '1234', '1234', '1234.00', '1234');
+
+    -- Insert data into results
+    INSERT INTO `results` (`id`, `sujet`, `nom`, `prenom`, `cin`, `numero_transaction`, `statut`) VALUES
+    (18, 'حفر بئر', 'test', 'test', '12345678', '12345678', 'مقبول');
+
+    -- Insert data into services_utilisateur
+    INSERT INTO `services_utilisateur` (`id`, `prenom`, `nom`, `cin`, `numero_transaction`, `certificat_propriete_terre`, `copie_piece_identite_fermier`, `copie_piece_identite_nationale`, `demande_but`, `copie_contrat_location_terrain`, `autres_documents`, `sujet`, `status`) VALUES
+    (83, 'test', 'test', '12345678', '12345678', 1, 1, 1, 1, 0, 0, 'حفر بئر', 'تم');
+
+    -- Insert data into sessions
+    INSERT INTO `sessions` (`session_id`, `expires`, `data`) VALUES
+    ('7Xo3Ny99F0MxFd0v1VPCPdgInuPCWt-X', 1744491934, '{"cookie":{"originalMaxAge":86400000,"expires":"2025-04-12T21:05:34.148Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"}}'),
+    ('d0AHnRnuidwhn3qV66x8VGKGk3yTeY8h', 1744483188, '{"cookie":{"originalMaxAge":86400000,"expires":"2025-04-12T18:39:47.604Z","secure":false,"httpOnly":true,"path":"/","sameSite":"lax"},"user":{"id":2,"email_user":"najwakarrouchi2222@gmail.com","role_user":"gerant","nom_user":"najwa","prenom_user":"karrouchi"}}');
+
+    -- Insert data into utilisateur
+    INSERT INTO `utilisateur` (`id`, `nom_user`, `prenom_user`, `sex_user`, `cin_user`, `email_user`, `password_user`, `role_user`, `created_at`, `status_user`) VALUES
+    (10, 'directeur', 'directeur', 'homme', '98765432', 'directeur@crda.com', '$2b$10$uWbOwlKaGKK7X5tKVTm6Euvwz1qJLSh1Pg5TpWAd7xxl4WGtu8eK2', 'directeur', '2025-04-11 20:59:41', 'approved'),
+    (11, 'chef', 'chef', 'femme', '14325544', 'chef@crda.com', '$2b$10$dX4nt39kPT9/VcV0JePDh.gys.mjdBAakTsAx56pg/ZTlzOhnATEu', 'chef_dentreprise', '2025-04-11 21:00:50', 'approved'),
+    (12, 'gerant', 'gerant', 'homme', '96268374', 'gerant@crda.com', '$2b$10$wFEHbAwY12YkYEy5WvdSQeTu1./6uL1qnDHfgq3g4iS5aWDkPRF.C', 'gerant', '2025-04-11 21:01:19', 'approved');
+
+    COMMIT;

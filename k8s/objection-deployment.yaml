@@ -28,7 +28,7 @@ spec:
         - name: MYSQL_HOST
           value: "mysql-service"
         - name: MYSQL_USER
-          value: "objc_user"
+          value: "app_user"
         - name: MYSQL_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -40,7 +40,7 @@ spec:
         - name: DB_HOST
           value: "mysql-service"
         - name: DB_USER
-          value: "objc_user"
+          value: "app_user"
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -68,14 +68,14 @@ spec:
         readinessProbe:
           httpGet:
             path: /health-pod
-            port: 3001 # Corrected to 3001
+            port: 3001
           initialDelaySeconds: 15
           periodSeconds: 10
           failureThreshold: 10
-        livenessProbe: # Added liveness probe
+        livenessProbe:
           httpGet:
             path: /livez
-            port: 3001 # Match the app port
+            port: 3001
           initialDelaySeconds: 30
           periodSeconds: 10
           failureThreshold: 5

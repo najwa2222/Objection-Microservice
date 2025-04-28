@@ -152,7 +152,7 @@ pipeline {
     success {
       slackSend(
         color: 'good',
-        message: "✅ Backend build & deploy succeeded: ${env.BUILD_URL}",
+        message: "✅ Objection Backend build & deploy succeeded: ${env.BUILD_URL}",
         channel: '#jenkins-builds',
         tokenCredentialId: 'slack-token'
       )
@@ -160,7 +160,7 @@ pipeline {
     failure {
       slackSend(
         color: 'danger',
-        message: "❌ Backend build or deploy failed: ${env.BUILD_URL}",
+        message: "❌ Objection Backend build or deploy failed: ${env.BUILD_URL}",
         channel: '#jenkins-builds',
         tokenCredentialId: 'slack-token'
       )
