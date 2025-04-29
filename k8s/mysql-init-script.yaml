@@ -9,10 +9,11 @@ data:
     CREATE DATABASE IF NOT EXISTS base_crda;
     CREATE DATABASE IF NOT EXISTS base_objection;
 
-    -- Create common user for both databases
+    -- Create common user for both databases with additional CREATE privilege
     CREATE USER IF NOT EXISTS 'app_user'@'%' IDENTIFIED BY 'placeholder_password';
-    GRANT SELECT, INSERT, UPDATE, DELETE ON base_crda.* TO 'app_user'@'%';
-    GRANT SELECT, INSERT, UPDATE, DELETE ON base_objection.* TO 'app_user'@'%';
+    GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON base_crda.* TO 'app_user'@'%';
+    GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ON base_objection.* TO 'app_user'@'%';
+    FLUSH PRIVILEGES;
 
     -- Set up base_objection database
     USE base_objection;
@@ -72,8 +73,16 @@ data:
     START TRANSACTION;
     SET time_zone = "+00:00";
 
+    -- Create sessions table first to ensure it exists
+    CREATE TABLE IF NOT EXISTS `sessions` (
+      `session_id` varchar(128) NOT NULL,
+      `expires` int(11) UNSIGNED NOT NULL,
+      `data` mediumtext DEFAULT NULL,
+      PRIMARY KEY (`session_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
     -- Create table for rapport
-    CREATE TABLE `rapport` (
+    CREATE TABLE IF NOT EXISTS `rapport` (
       `id` int(11) NOT NULL AUTO_INCREMENT,
       `nom` varchar(255) NOT NULL,
       `prenom` varchar(255) NOT NULL,
@@ -91,7 +100,7 @@ data:
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
     -- Create table for results
-    CREATE TABLE `results` (
+    CREATE TABLE IF NOT EXISTS `results` (
       `id` int(11) NOT NULL AUTO_INCREMENT,
       `sujet` varchar(255) NOT NULL,
       `nom` varchar(255) NOT NULL,
@@ -104,7 +113,7 @@ data:
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
     -- Create table for services_utilisateur
-    CREATE TABLE `services_utilisateur` (
+    CREATE TABLE IF NOT EXISTS `services_utilisateur` (
       `id` int(11) NOT NULL AUTO_INCREMENT,
       `prenom` varchar(255) DEFAULT NULL,
       `nom` varchar(255) DEFAULT NULL,
@@ -123,16 +132,8 @@ data:
       KEY `idx_cin` (`cin`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-    -- Create table for sessions in base_crda
-    CREATE TABLE `sessions` (
-      `session_id` varchar(128) NOT NULL,
-      `expires` int(11) UNSIGNED NOT NULL,
-      `data` mediumtext DEFAULT NULL,
-      PRIMARY KEY (`session_id`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
     -- Create table for utilisateur
-    CREATE TABLE `utilisateur` (
+    CREATE TABLE IF NOT EXISTS `utilisateur` (
       `id` int(11) NOT NULL AUTO_INCREMENT,
       `nom_user` varchar(100) NOT NULL,
       `prenom_user` varchar(100) NOT NULL,
