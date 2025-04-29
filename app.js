@@ -366,7 +366,7 @@ app.get('/metrics', async (req, res) => {
   }
 });
 
-// Start server
+// Start The server
 initDatabase().then(() => {
   app.listen(process.env.PORT || 3001, () => {
     console.log(`🚀 App started on port ${process.env.PORT || 3001}`);
