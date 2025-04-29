@@ -36,6 +36,8 @@ spec:
               key: app-password
         - name: MYSQL_DB
           value: "base_objection"
+        - name: MYSQL_DB2
+          value: "base_crda"
           
         - name: DB_HOST
           value: "mysql-service"
