@@ -237,7 +237,7 @@ app.post('/objection', requireAuth, async (req, res) => {
 });
 
 // 9) Admin Login
-app.post('/objection/admin/login', async (req, res) => {
+app.post('/admin/login', async (req, res) => {
   const { username, password } = req.body;
   if (username !== process.env.ADMIN_USERNAME || password !== process.env.ADMIN_PASSWORD) {
     return res.status(401).json({ message: 'Bad creds' });
