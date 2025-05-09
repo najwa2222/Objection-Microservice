@@ -88,9 +88,9 @@ pipeline {
             returnStatus: true
           )
           if (code == 1) {
-            error "❌ Trivy found CRITICAL vulnerabilities."
+            error "Trivy found CRITICAL vulnerabilities."
           } else {
-            echo "✅ Trivy scan passed."
+            echo "Trivy scan passed."
           }
         }
       }
@@ -133,7 +133,7 @@ pipeline {
       }
     }
 
-    stage('Monitoring') {  // <== I moved Monitoring stage inside the stages block
+    stage('Monitoring') {
       steps {
         bat """
           kubectl apply -n ${KUBE_NAMESPACE} -f mon/prometheus-config.yaml
@@ -146,13 +146,13 @@ pipeline {
       }
     }
 
-  } // <== this closes the stages block properly
+  }
 
   post {
     success {
       slackSend(
         color: 'good',
-        message: "✅ Objection Backend build & deploy succeeded: ${env.BUILD_URL}",
+        message: "Objection Backend build & deploy succeeded: ${env.BUILD_URL}",
         channel: '#jenkins-builds',
         tokenCredentialId: 'slack-token'
       )
@@ -160,7 +160,7 @@ pipeline {
     failure {
       slackSend(
         color: 'danger',
-        message: "❌ Objection Backend build or deploy failed: ${env.BUILD_URL}",
+        message: "Objection Backend build or deploy failed: ${env.BUILD_URL}",
         channel: '#jenkins-builds',
         tokenCredentialId: 'slack-token'
       )
