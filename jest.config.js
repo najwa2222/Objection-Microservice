@@ -6,7 +6,7 @@ export default {
   },
   setupFilesAfterEnv: ['<rootDir>/jest/setup.js'],
   testMatch: ['**/__tests__/**/*.test.js'],
-  resolver: '<rootDir>/jest-resolver.js',
+  resolver: '<rootDir>/jest-resolver.cjs', // Updated to use the CJS adapter
   transform: {},
   testTimeout: 30000,
   clearMocks: true,
