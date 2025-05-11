@@ -6,7 +6,7 @@ export default {
   },
   setupFilesAfterEnv: ['./jest/setup.js'], // Using relative path
   testMatch: ['**/__tests__/**/*.test.js'],
-  resolver: './jest-resolver.cjs', // Using the CommonJS adapter
+  // resolver: './jest-resolver.cjs', // Using the CommonJS adapter
   transform: {},
   testTimeout: 30000,
   clearMocks: true,
