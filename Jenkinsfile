@@ -16,7 +16,7 @@ pipeline {
   }
 
   options {
-    timeout(time: 60, unit: 'MINUTES')
+    timeout(time: 120, unit: 'MINUTES')
     disableConcurrentBuilds()
   }
 
@@ -128,7 +128,7 @@ pipeline {
           kubectl apply -n ${KUBE_NAMESPACE} -f k8s/app-secret.yaml
           kubectl apply -n ${KUBE_NAMESPACE} -f k8s/objection-deployment.yaml
           kubectl apply -n ${KUBE_NAMESPACE} -f k8s/objection-service.yaml
-          kubectl rollout status deployment/objection-app -n ${KUBE_NAMESPACE} --timeout=120s
+          kubectl rollout status deployment/objection-app -n ${KUBE_NAMESPACE} --timeout=1800s
         """
       }
     }
