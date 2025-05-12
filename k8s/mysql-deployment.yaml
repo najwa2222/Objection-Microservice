@@ -66,27 +66,6 @@ spec:
           mountPath: /etc/mysql/conf.d/my.cnf
           subPath: my.cnf
 
-        # Commented out probes temporarily to debug startup failure
-        # livenessProbe:
-        #   exec:
-        #     command:
-        #       - sh
-        #       - -c
-        #       - mysqladmin ping -u"$MYSQL_USER" -p"$MYSQL_PASSWORD"
-        #   initialDelaySeconds: 45
-        #   periodSeconds: 15
-        #   failureThreshold: 3
-
-        # readinessProbe:
-        #   exec:
-        #     command:
-        #       - sh
-        #       - -c
-        #       - mysqladmin ping -uroot -p"$MYSQL_ROOT_PASSWORD"
-        #   initialDelaySeconds: 15
-        #   periodSeconds: 10
-        #   failureThreshold: 3
-
       volumes:
       - name: mysql-pvc
         persistentVolumeClaim:
