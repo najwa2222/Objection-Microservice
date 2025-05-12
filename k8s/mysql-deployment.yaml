@@ -26,11 +26,16 @@ spec:
           - sh
           - -c
           - |
-            echo ">>> emptying /var/lib/mysql…"
-            rm -rf /var/lib/mysql/* /var/lib/mysql/.* 2>/dev/null || true
+            if [ ! -f /var/lib/mysql/.initialized ]; then
+              echo ">>> First-time init: emptying /var/lib/mysql…"
+              rm -rf /var/lib/mysql/* /var/lib/mysql/.* 2>/dev/null || true
+              touch /var/lib/mysql/.initialized
+            else
+              echo ">>> Data directory already initialized; skipping wipe."
+            fi
         volumeMounts:
-        - name: mysql-pvc
-          mountPath: /var/lib/mysql
+          - name: mysql-pvc
+            mountPath: /var/lib/mysql
 
       containers:
       - name: mysql
