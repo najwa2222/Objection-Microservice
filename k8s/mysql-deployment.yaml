@@ -14,6 +14,24 @@ spec:
         app: mysql
         tier: database
     spec:
+      # 2) Ensure the mysql user inside the pod can write the PV
+      securityContext:
+        fsGroup: 999
+
+      # 1) Clear out any old data before MySQL ever starts
+      initContainers:
+      - name: clear-mysql-data
+        image: busybox:1.35
+        command:
+          - sh
+          - -c
+          - |
+            echo ">>> emptying /var/lib/mysql…"
+            rm -rf /var/lib/mysql/* /var/lib/mysql/.* 2>/dev/null || true
+        volumeMounts:
+        - name: mysql-pvc
+          mountPath: /var/lib/mysql
+
       containers:
       - name: mysql
         image: mysql:8.0
@@ -42,16 +60,28 @@ spec:
         - name: custom-config
           mountPath: /etc/mysql/conf.d/my.cnf
           subPath: my.cnf
+
+        # 3) Use shell (-c) so $MYSQL_USER and $MYSQL_PASSWORD get expanded
         livenessProbe:
           exec:
-            command: ["mysqladmin","ping","-u${MYSQL_USER}","-p${MYSQL_PASSWORD}"]
+            command:
+              - sh
+              - -c
+              - mysqladmin ping -u"$MYSQL_USER" -p"$MYSQL_PASSWORD"
           initialDelaySeconds: 45
           periodSeconds: 15
+          failureThreshold: 3
+
         readinessProbe:
           exec:
-            command: ["mysqladmin","ping","-uroot","-p${MYSQL_ROOT_PASSWORD}"]
+            command:
+              - sh
+              - -c
+              - mysqladmin ping -uroot -p"$MYSQL_ROOT_PASSWORD"
           initialDelaySeconds: 15
           periodSeconds: 10
+          failureThreshold: 3
+
       volumes:
       - name: mysql-pvc
         persistentVolumeClaim:
